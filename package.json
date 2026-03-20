@@ -1,0 +1,9 @@
+{
+  "name": "pierre-proxy",
+  "version": "2.0.0",
+  "description": "Pierre Design – Upgates API Proxy + Notes DB",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "dependencies": { "pg": "^8.11.0" },
+  "engines": { "node": ">=18" }
+}
