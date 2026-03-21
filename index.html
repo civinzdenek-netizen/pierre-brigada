@@ -134,12 +134,12 @@ const NOTES_URL='https://brigadnik-production.up.railway.app/notes';
 let apiLogin='',apiKey='',apiUrl='';
 let allOrders=[],allNotes={};
 let activeFilter='',openCardId=null;
-
+ 
 function toast(msg,type){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show '+(type||'');setTimeout(()=>t.className='toast',3000);}
 function saveCredentials(){localStorage.setItem('pd_b_login',apiLogin);localStorage.setItem('pd_b_key',apiKey);localStorage.setItem('pd_b_url',apiUrl);}
 function loadCredentials(){return{login:localStorage.getItem('pd_b_login')||'',key:localStorage.getItem('pd_b_key')||'',url:localStorage.getItem('pd_b_url')||''};}
 function clearCredentials(){localStorage.removeItem('pd_b_login');localStorage.removeItem('pd_b_key');localStorage.removeItem('pd_b_url');}
-
+ 
 async function apiGet(endpoint){
   const base=apiUrl.replace(/\/$/,'');
   const target=base+'/'+endpoint;
@@ -148,7 +148,7 @@ async function apiGet(endpoint){
   if(!r.ok) throw new Error('HTTP '+r.status);
   return r.json();
 }
-
+ 
 async function fetchOrders(){
   let page=1,items=[],hasMore=true;
   while(hasMore){
@@ -163,11 +163,11 @@ async function fetchOrders(){
   items.sort((a,b)=>new Date(b.creation_time)-new Date(a.creation_time));
   return items;
 }
-
+ 
 async function fetchNotes(){
   try{const r=await fetch(NOTES_URL);if(r.ok) allNotes=await r.json();}catch(e){allNotes={};}
 }
-
+ 
 async function saveNote(orderId){
   const noteEl=document.getElementById('note-'+orderId);
   const trackEl=document.getElementById('track-'+orderId);
@@ -177,7 +177,7 @@ async function saveNote(orderId){
   btn.disabled=true; fb.textContent=''; fb.className='save-feedback';
   try{
     const r=await fetch(NOTES_URL,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({order_id:String(orderId),note:noteEl.value,tracking_code:trackEl.value})});
+      body:JSON.stringify({orderId:String(orderId),note:noteEl.value,trackingCode:trackEl.value})});
     if(!r.ok) throw new Error('HTTP '+r.status);
     allNotes[String(orderId)]={note:noteEl.value,tracking_code:trackEl.value};
     fb.textContent='Uloženo'; fb.className='save-feedback ok';
@@ -186,7 +186,7 @@ async function saveNote(orderId){
     setTimeout(()=>{fb.textContent='';btn.disabled=false;},2000);
   }catch(e){fb.textContent='Chyba: '+e.message;fb.className='save-feedback err';btn.disabled=false;}
 }
-
+ 
 function statusClass(s){
   if(!s) return 's-default';
   const l=s.toLowerCase();
@@ -197,7 +197,7 @@ function statusClass(s){
   if(l.includes('zrušen')||l.includes('cancel')) return 's-cancelled';
   return 's-default';
 }
-
+ 
 function formatDate(dt){
   if(!dt) return '-';
   const d=new Date(dt),now=new Date(),diff=now-d;
@@ -205,7 +205,7 @@ function formatDate(dt){
   if(diff<172800000) return 'Včera';
   return d.toLocaleDateString('cs-CZ',{day:'numeric',month:'short',year:'numeric'});
 }
-
+ 
 function buildFilters(){
   const statuses=[...new Set(allOrders.map(o=>o.status).filter(Boolean))];
   const bar=document.getElementById('filter-bar');
@@ -215,14 +215,14 @@ function buildFilters(){
     bar.innerHTML+='<button class="filter-chip'+(activeFilter===s?' active':'')+'" onclick="setFilter(\''+s.replace(/'/g,"\\'")+'\',this)">'+s+' <small style="opacity:.6">'+count+'</small></button>';
   });
 }
-
+ 
 function setFilter(status,btn){
   activeFilter=status;
   document.querySelectorAll('.filter-chip').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   applyFilters();
 }
-
+ 
 function applyFilters(){
   const q=document.getElementById('search').value.toLowerCase();
   const filtered=allOrders.filter(o=>{
@@ -236,7 +236,7 @@ function applyFilters(){
   });
   renderOrders(filtered);
 }
-
+ 
 function renderOrders(orders){
   orders=orders||allOrders;
   const list=document.getElementById('orders-list');
@@ -262,7 +262,7 @@ function renderOrders(orders){
     const dCity=o.city_postal||c.city_postal||o.city_invoice||c.city_invoice||'';
     const savedNote=(allNotes[id]||{}).note||'';
     const savedTrack=(allNotes[id]||{}).tracking_code||'';
-
+ 
     let itemsHtml='';
     if(o.products&&o.products.length){
       itemsHtml='<div class="items-title">Položky objednávky</div>';
@@ -279,7 +279,7 @@ function renderOrders(orders){
         itemsHtml+='</div><div class="item-qty">'+pQty+' ks</div></div>';
       });
     }
-
+ 
     html+='<div class="order-card" id="card-'+id+'">';
     html+='<div class="order-card-main" onclick="toggleCard(\''+id+'\')">';
     html+='<div class="order-number-badge">#'+id+'</div>';
@@ -291,7 +291,7 @@ function renderOrders(orders){
     html+='</div></div>';
     html+='<div class="order-right"><span class="status '+sc+'">'+status+'</span></div>';
     html+='</div>';
-
+ 
     html+='<div class="order-detail" id="detail-'+id+'">';
     if(fullName) html+='<div class="detail-row"><label>Jméno</label><value>'+fullName+'</value></div>';
     if(email) html+='<div class="detail-row"><label>E-mail</label><value>'+email+'</value></div>';
@@ -305,7 +305,7 @@ function renderOrders(orders){
     html+='<div class="detail-row"><label>Doprava</label><value>'+shipment+'</value></div>';
     if(payment) html+='<div class="detail-row"><label>Platba</label><value>'+payment+'</value></div>';
     html+=itemsHtml;
-
+ 
     html+='<div class="note-section">';
     html+='<div class="detail-section-title">Poznámka &amp; podací kód</div>';
     html+='<div class="note-label">Poznámka</div>';
@@ -318,7 +318,7 @@ function renderOrders(orders){
   });
   list.innerHTML=html;
 }
-
+ 
 function toggleCard(id){
   const detail=document.getElementById('detail-'+id);
   if(!detail) return;
@@ -328,7 +328,7 @@ function toggleCard(id){
   openCardId=isOpen?null:id;
   if(!isOpen) setTimeout(()=>document.getElementById('card-'+id).scrollIntoView({behavior:'smooth',block:'nearest'}),50);
 }
-
+ 
 async function connect(){
   apiLogin=document.getElementById('l-login').value.trim();
   apiKey=document.getElementById('l-key').value.trim();
@@ -346,14 +346,14 @@ async function connect(){
     toast('Připojeno · '+allOrders.length+' objednávek','ok');
   }catch(e){showLoginError('Chyba připojení: '+e.message);btn.disabled=false;btn.textContent='Připojit';}
 }
-
+ 
 async function refresh(){
   const btn=document.getElementById('btn-refresh');btn.classList.add('spinning');
   try{await fetchNotes();allOrders=await fetchOrders();buildFilters();applyFilters();toast('Obnoveno','ok');}
   catch(e){toast('Chyba: '+e.message,'err');}
   btn.classList.remove('spinning');
 }
-
+ 
 function logout(){
   clearCredentials();apiLogin='';apiKey='';apiUrl='';allOrders=[];allNotes={};
   document.getElementById('login').style.display='flex';
@@ -361,12 +361,12 @@ function logout(){
   document.getElementById('btn-connect').disabled=false;
   document.getElementById('btn-connect').textContent='Připojit';
 }
-
+ 
 function showLoginError(msg){const el=document.getElementById('login-error');el.textContent=msg;el.style.display='block';}
 function hideLoginError(){document.getElementById('login-error').style.display='none';}
-
+ 
 document.addEventListener('keydown',function(e){if(e.key==='Enter'&&document.getElementById('login').style.display!=='none') connect();});
-
+ 
 document.addEventListener('DOMContentLoaded',async function(){
   const creds=loadCredentials();
   if(creds.login&&creds.key&&creds.url){
@@ -391,3 +391,4 @@ document.addEventListener('DOMContentLoaded',async function(){
 </script>
 </body>
 </html>
+ 
