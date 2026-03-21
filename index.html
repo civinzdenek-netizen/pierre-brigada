@@ -203,7 +203,7 @@ async function saveNote(orderId){
     allNotes[String(orderId)]={note:noteEl.value,tracking_code:trackingCode};
     fb.textContent='Uloženo'; fb.className='save-feedback ok';
     const badge=document.getElementById('tbadge-'+orderId);
-    if(badge){if(trackEl.value.trim()){badge.textContent='📦 '+trackEl.value.trim();badge.style.display='inline-flex';}else badge.style.display='none';}
+    if(badge){const firstCode=codes.find(c=>c.trim());if(firstCode){badge.textContent='📦 '+firstCode;badge.style.display='inline-flex';}else badge.style.display='none';}
     setTimeout(()=>{fb.textContent='';btn.disabled=false;},2000);
   }catch(e){fb.textContent='Chyba: '+e.message;fb.className='save-feedback err';btn.disabled=false;}
 }
