@@ -53,8 +53,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);min-
 .order-meta{font-size:12px;color:var(--muted);font-weight:300;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
 .order-right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;}
 .tracking-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(74,122,90,.1);color:var(--green);font-size:11px;font-weight:500;padding:3px 8px;border-radius:6px;}
-.status{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:6px;font-size:11px;font-weight:500;white-space:nowrap;}
-.status::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor;}
+.status{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:8px;font-size:12px;font-weight:700;white-space:nowrap;letter-spacing:.3px;}
+.status::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;}
 .s-new{background:rgba(58,90,139,.1);color:var(--blue);}
 .s-confirmed,.s-processing{background:rgba(139,96,0,.1);color:var(--orange);}
 .s-shipped,.s-done{background:rgba(74,122,90,.1);color:var(--green);}
@@ -134,12 +134,12 @@ const NOTES_URL='https://brigadnik-production.up.railway.app/notes';
 let apiLogin='',apiKey='',apiUrl='';
 let allOrders=[],allNotes={};
 let activeFilter='',openCardId=null;
- 
+
 function toast(msg,type){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show '+(type||'');setTimeout(()=>t.className='toast',3000);}
 function saveCredentials(){localStorage.setItem('pd_b_login',apiLogin);localStorage.setItem('pd_b_key',apiKey);localStorage.setItem('pd_b_url',apiUrl);}
 function loadCredentials(){return{login:localStorage.getItem('pd_b_login')||'',key:localStorage.getItem('pd_b_key')||'',url:localStorage.getItem('pd_b_url')||''};}
 function clearCredentials(){localStorage.removeItem('pd_b_login');localStorage.removeItem('pd_b_key');localStorage.removeItem('pd_b_url');}
- 
+
 async function apiGet(endpoint){
   const base=apiUrl.replace(/\/$/,'');
   const target=base+'/'+endpoint;
@@ -148,7 +148,7 @@ async function apiGet(endpoint){
   if(!r.ok) throw new Error('HTTP '+r.status);
   return r.json();
 }
- 
+
 async function fetchOrders(){
   let page=1,items=[],hasMore=true;
   while(hasMore){
@@ -163,30 +163,51 @@ async function fetchOrders(){
   items.sort((a,b)=>new Date(b.creation_time)-new Date(a.creation_time));
   return items;
 }
- 
+
 async function fetchNotes(){
   try{const r=await fetch(NOTES_URL);if(r.ok) allNotes=await r.json();}catch(e){allNotes={};}
 }
- 
+
+function updateTrackingFields(orderId){
+  var sel=document.getElementById('pcount-'+orderId);
+  var count=parseInt(sel.value);
+  var wrap=document.getElementById('tfields-'+orderId);
+  var saved=allNotes[String(orderId)]||{};
+  var savedCodes=[];
+  try{savedCodes=JSON.parse(saved.tracking_code||'[]');if(!Array.isArray(savedCodes))savedCodes=saved.tracking_code?[saved.tracking_code]:[];}catch(e){savedCodes=saved.tracking_code?[saved.tracking_code]:[];}
+  var html='';
+  for(var n=0;n<count;n++){html+='<div class="tracking-field-wrap"><span class="tracking-field-num">'+(n+1)+'.</span><input type="text" class="tracking-input" id="track-'+orderId+'-'+n+'" placeholder="např. DR123456789CZ" value="'+(savedCodes[n]||'')+'"/></div>';}
+  wrap.innerHTML=html;
+}
+
 async function saveNote(orderId){
   const noteEl=document.getElementById('note-'+orderId);
-  const trackEl=document.getElementById('track-'+orderId);
   const btn=document.getElementById('savebtn-'+orderId);
   const fb=document.getElementById('fb-'+orderId);
-  if(!noteEl||!trackEl) return;
+  if(!noteEl) return;
+  // Collect all tracking codes
+  var codes=[];
+  var n=0;
+  while(true){
+    var el=document.getElementById('track-'+orderId+'-'+n);
+    if(!el) break;
+    codes.push(el.value.trim());
+    n++;
+  }
+  const trackingCode=JSON.stringify(codes);
   btn.disabled=true; fb.textContent=''; fb.className='save-feedback';
   try{
     const r=await fetch(NOTES_URL,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({orderId:String(orderId),note:noteEl.value,trackingCode:trackEl.value})});
+      body:JSON.stringify({orderId:String(orderId),note:noteEl.value,trackingCode:trackingCode})});
     if(!r.ok) throw new Error('HTTP '+r.status);
-    allNotes[String(orderId)]={note:noteEl.value,tracking_code:trackEl.value};
+    allNotes[String(orderId)]={note:noteEl.value,tracking_code:trackingCode};
     fb.textContent='Uloženo'; fb.className='save-feedback ok';
     const badge=document.getElementById('tbadge-'+orderId);
     if(badge){if(trackEl.value.trim()){badge.textContent='📦 '+trackEl.value.trim();badge.style.display='inline-flex';}else badge.style.display='none';}
     setTimeout(()=>{fb.textContent='';btn.disabled=false;},2000);
   }catch(e){fb.textContent='Chyba: '+e.message;fb.className='save-feedback err';btn.disabled=false;}
 }
- 
+
 function statusClass(s){
   if(!s) return 's-default';
   const l=s.toLowerCase();
@@ -197,7 +218,7 @@ function statusClass(s){
   if(l.includes('zrušen')||l.includes('cancel')) return 's-cancelled';
   return 's-default';
 }
- 
+
 function formatDate(dt){
   if(!dt) return '-';
   const d=new Date(dt),now=new Date(),diff=now-d;
@@ -205,7 +226,7 @@ function formatDate(dt){
   if(diff<172800000) return 'Včera';
   return d.toLocaleDateString('cs-CZ',{day:'numeric',month:'short',year:'numeric'});
 }
- 
+
 function buildFilters(){
   const statuses=[...new Set(allOrders.map(o=>o.status).filter(Boolean))];
   const bar=document.getElementById('filter-bar');
@@ -215,14 +236,14 @@ function buildFilters(){
     bar.innerHTML+='<button class="filter-chip'+(activeFilter===s?' active':'')+'" onclick="setFilter(\''+s.replace(/'/g,"\\'")+'\',this)">'+s+' <small style="opacity:.6">'+count+'</small></button>';
   });
 }
- 
+
 function setFilter(status,btn){
   activeFilter=status;
   document.querySelectorAll('.filter-chip').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   applyFilters();
 }
- 
+
 function applyFilters(){
   const q=document.getElementById('search').value.toLowerCase();
   const filtered=allOrders.filter(o=>{
@@ -236,7 +257,7 @@ function applyFilters(){
   });
   renderOrders(filtered);
 }
- 
+
 function renderOrders(orders){
   orders=orders||allOrders;
   const list=document.getElementById('orders-list');
@@ -262,7 +283,7 @@ function renderOrders(orders){
     const dCity=o.city_postal||c.city_postal||o.city_invoice||c.city_invoice||'';
     const savedNote=(allNotes[id]||{}).note||'';
     const savedTrack=(allNotes[id]||{}).tracking_code||'';
- 
+
     let itemsHtml='';
     if(o.products&&o.products.length){
       itemsHtml='<div class="items-title">Položky objednávky</div>';
@@ -279,7 +300,7 @@ function renderOrders(orders){
         itemsHtml+='</div><div class="item-qty">'+pQty+' ks</div></div>';
       });
     }
- 
+
     html+='<div class="order-card" id="card-'+id+'">';
     html+='<div class="order-card-main" onclick="toggleCard(\''+id+'\')">';
     html+='<div class="order-number-badge">#'+id+'</div>';
@@ -291,7 +312,7 @@ function renderOrders(orders){
     html+='</div></div>';
     html+='<div class="order-right"><span class="status '+sc+'">'+status+'</span></div>';
     html+='</div>';
- 
+
     html+='<div class="order-detail" id="detail-'+id+'">';
     if(fullName) html+='<div class="detail-row"><label>Jméno</label><value>'+fullName+'</value></div>';
     if(email) html+='<div class="detail-row"><label>E-mail</label><value>'+email+'</value></div>';
@@ -305,20 +326,48 @@ function renderOrders(orders){
     html+='<div class="detail-row"><label>Doprava</label><value>'+shipment+'</value></div>';
     if(payment) html+='<div class="detail-row"><label>Platba</label><value>'+payment+'</value></div>';
     html+=itemsHtml;
- 
+
+    var savedCodes=[];
+    try{savedCodes=JSON.parse(savedTrack);if(!Array.isArray(savedCodes))savedCodes=savedTrack?[savedTrack]:[];}
+    catch(e){savedCodes=savedTrack?[savedTrack]:[];}
+    var parcelCount=savedCodes.length||1;
+    var pOpts='';
+    for(var n=1;n<=10;n++){pOpts+='<option value="'+n+'"'+(n===parcelCount?' selected':'')+'>'+(n===1?'1 balík':n<5?n+' balíky':n+' balíků')+'</option>';}
+    var tFields='';
+    for(var n=0;n<parcelCount;n++){tFields+='<div class="tracking-field-wrap"><span class="tracking-field-num">'+(n+1)+'.</span><input type="text" class="tracking-input" id="track-'+id+'-'+n+'" placeholder="např. DR123456789CZ" value="'+(savedCodes[n]||'')+'"/></div>';}
+
     html+='<div class="note-section">';
-    html+='<div class="detail-section-title">Poznámka &amp; podací kód</div>';
+    html+='<div class="detail-section-title">Poznámka &amp; podací kódy</div>';
     html+='<div class="note-label">Poznámka</div>';
     html+='<textarea class="note-textarea" id="note-'+id+'" placeholder="Sem napište poznámku k objednávce…">'+savedNote+'</textarea>';
-    html+='<div class="note-label" style="margin-top:12px;">Podací kód zásilky</div>';
-    html+='<input class="tracking-input" id="track-'+id+'" type="text" placeholder="např. DR123456789CZ" value="'+savedTrack+'"/>';
+    html+='<div class="parcel-section">';
+    html+='<div class="parcel-count-wrap"><span class="parcel-count-label">Počet balíků</span>';
+    html+='<select class="parcel-select" id="pcount-'+id+'" onchange="updateTrackingFields(\''+id+'\')"><option value="1">1 balík</option><option value="2">2 balíky</option><option value="3">3 balíky</option><option value="4">4 balíky</option><option value="5">5 balíků</option><option value="6">6 balíků</option><option value="7">7 balíků</option><option value="8">8 balíků</option><option value="9">9 balíků</option><option value="10">10 balíků</option></select></div>';
+    html+='<div class="tracking-fields" id="tfields-'+id+'"></div>';
+    html+='</div>';
     html+='<button class="btn-save-note" id="savebtn-'+id+'" onclick="saveNote(\''+id+'\')">Uložit</button>';
     html+='<div class="save-feedback" id="fb-'+id+'"></div>';
     html+='</div></div></div>';
   });
   list.innerHTML=html;
+  // Initialize tracking fields for all visible orders
+  allOrders.forEach(function(o){
+    var id=String(o.order_number||o.order_id);
+    var saved=allNotes[id]||{};
+    var savedCodes=[];
+    try{savedCodes=JSON.parse(saved.tracking_code||'[]');if(!Array.isArray(savedCodes))savedCodes=saved.tracking_code?[saved.tracking_code]:[];}catch(e){savedCodes=saved.tracking_code?[saved.tracking_code]:[];}
+    var count=savedCodes.length||1;
+    var sel=document.getElementById('pcount-'+id);
+    var wrap=document.getElementById('tfields-'+id);
+    if(sel&&wrap){
+      sel.value=count;
+      var html='';
+      for(var n=0;n<count;n++){html+='<div class="tracking-field-wrap"><span class="tracking-field-num">'+(n+1)+'.</span><input type="text" class="tracking-input" id="track-'+id+'-'+n+'" placeholder="např. DR123456789CZ" value="'+(savedCodes[n]||'')+'"/></div>';}
+      wrap.innerHTML=html;
+    }
+  });
 }
- 
+
 function toggleCard(id){
   const detail=document.getElementById('detail-'+id);
   if(!detail) return;
@@ -328,7 +377,7 @@ function toggleCard(id){
   openCardId=isOpen?null:id;
   if(!isOpen) setTimeout(()=>document.getElementById('card-'+id).scrollIntoView({behavior:'smooth',block:'nearest'}),50);
 }
- 
+
 async function connect(){
   apiLogin=document.getElementById('l-login').value.trim();
   apiKey=document.getElementById('l-key').value.trim();
@@ -346,14 +395,14 @@ async function connect(){
     toast('Připojeno · '+allOrders.length+' objednávek','ok');
   }catch(e){showLoginError('Chyba připojení: '+e.message);btn.disabled=false;btn.textContent='Připojit';}
 }
- 
+
 async function refresh(){
   const btn=document.getElementById('btn-refresh');btn.classList.add('spinning');
   try{await fetchNotes();allOrders=await fetchOrders();buildFilters();applyFilters();toast('Obnoveno','ok');}
   catch(e){toast('Chyba: '+e.message,'err');}
   btn.classList.remove('spinning');
 }
- 
+
 function logout(){
   clearCredentials();apiLogin='';apiKey='';apiUrl='';allOrders=[];allNotes={};
   document.getElementById('login').style.display='flex';
@@ -361,12 +410,12 @@ function logout(){
   document.getElementById('btn-connect').disabled=false;
   document.getElementById('btn-connect').textContent='Připojit';
 }
- 
+
 function showLoginError(msg){const el=document.getElementById('login-error');el.textContent=msg;el.style.display='block';}
 function hideLoginError(){document.getElementById('login-error').style.display='none';}
- 
+
 document.addEventListener('keydown',function(e){if(e.key==='Enter'&&document.getElementById('login').style.display!=='none') connect();});
- 
+
 document.addEventListener('DOMContentLoaded',async function(){
   const creds=loadCredentials();
   if(creds.login&&creds.key&&creds.url){
@@ -391,4 +440,3 @@ document.addEventListener('DOMContentLoaded',async function(){
 </script>
 </body>
 </html>
- 
