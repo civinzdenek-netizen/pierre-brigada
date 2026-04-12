@@ -120,7 +120,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink);min-
       <button class="btn-icon" onclick="logout()">✕</button>
     </div>
   </header>
-  <div class="filter-bar" id="filter-bar"><button class="filter-chip active" onclick="setFilter('',this)">Vše</button></div>
+  <div class="filter-bar" id="filter-bar"></div>
   <div class="search-wrap">
     <span class="search-icon">🔍</span>
     <input class="search-input" id="search" placeholder="Hledat jméno, číslo, podací kód…" oninput="applyFilters()" style="padding-left:40px;"/>
@@ -133,7 +133,7 @@ const PROXY='https://brigadnik-production.up.railway.app/proxy';
 const NOTES_URL='https://brigadnik-production.up.railway.app/notes';
 let apiLogin='',apiKey='',apiUrl='';
 let allOrders=[],allNotes={};
-let activeFilter='',openCardId=null;
+let activeFilter='Přijatá',openCardId=null;
 
 function toast(msg,type){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show '+(type||'');setTimeout(()=>t.className='toast',3000);}
 function saveCredentials(){localStorage.setItem('pd_b_login',apiLogin);localStorage.setItem('pd_b_key',apiKey);localStorage.setItem('pd_b_url',apiUrl);}
@@ -228,32 +228,46 @@ function formatDate(dt){
 }
 
 function buildFilters(){
-  const statuses=[...new Set(allOrders.map(o=>o.status).filter(Boolean))];
   const bar=document.getElementById('filter-bar');
-  bar.innerHTML='<button class="filter-chip'+(activeFilter?'':' active')+'" onclick="setFilter(\'\',this)">Vše <small style="opacity:.6">'+allOrders.length+'</small></button>';
-  statuses.forEach(s=>{
-    const count=allOrders.filter(o=>o.status===s).length;
-    bar.innerHTML+='<button class="filter-chip'+(activeFilter===s?' active':'')+'" onclick="setFilter(\''+s.replace(/'/g,"\\'")+'\',this)">'+s+' <small style="opacity:.6">'+count+'</small></button>';
+  const groups=[
+    {label:'Přijatá',statuses:['Přijatá','Platba úspěšná','Platba selhala']},
+    {label:'Vyřizuje se',statuses:['Vyřizuje se']},
+    {label:'Odeslána',statuses:['Odeslána']},
+    {label:'Storno',statuses:['Storno','Zrušená','Stornovaná']},
+  ];
+  bar.innerHTML='';
+  groups.forEach(function(g){
+    const count=allOrders.filter(function(o){ return g.statuses.indexOf(o.status)>=0; }).length;
+    const isActive=activeFilter===g.label;
+    bar.innerHTML+='<button class="filter-chip'+(isActive?' active':'')+'" onclick="setFilterGroup(\''+g.label+'\',this)">'+g.label+' <small style="opacity:.6">'+count+'</small></button>';
   });
 }
 
-function setFilter(status,btn){
-  activeFilter=status;
-  document.querySelectorAll('.filter-chip').forEach(b=>b.classList.remove('active'));
+function setFilterGroup(groupLabel,btn){
+  activeFilter=groupLabel;
+  document.querySelectorAll('.filter-chip').forEach(function(b){b.classList.remove('active');});
   btn.classList.add('active');
   applyFilters();
 }
 
 function applyFilters(){
   const q=document.getElementById('search').value.toLowerCase();
-  const filtered=allOrders.filter(o=>{
+  const groupStatuses={
+    'Přijatá':['Přijatá','Platba úspěšná','Platba selhala'],
+    'Vyřizuje se':['Vyřizuje se'],
+    'Odeslána':['Odeslána'],
+    'Storno':['Storno','Zrušená','Stornovaná'],
+  };
+  const filtered=allOrders.filter(function(o){
     const c=o.customer||{};
     const name=((o.firstname_invoice||c.firstname_invoice||'')+' '+(o.surname_invoice||c.surname_invoice||'')).toLowerCase();
     const num=String(o.order_number||'').toLowerCase();
     const email=(c.email||'').toLowerCase();
     const oid=String(o.order_number||o.order_id||'');
     const track=((allNotes[oid]||{}).tracking_code||'').toLowerCase();
-    return(!q||name.includes(q)||num.includes(q)||email.includes(q)||track.includes(q))&&(!activeFilter||o.status===activeFilter);
+    const matchQ=!q||name.includes(q)||num.includes(q)||email.includes(q)||track.includes(q);
+    const matchS=activeFilter&&groupStatuses[activeFilter]?groupStatuses[activeFilter].indexOf(o.status)>=0:true;
+    return matchQ&&matchS;
   });
   renderOrders(filtered);
 }
@@ -391,7 +405,7 @@ async function connect(){
     saveCredentials();
     document.getElementById('login').style.display='none';
     document.getElementById('app').style.display='flex';
-    buildFilters();renderOrders();
+    buildFilters();applyFilters();
     toast('Připojeno · '+allOrders.length+' objednávek','ok');
   }catch(e){showLoginError('Chyba připojení: '+e.message);btn.disabled=false;btn.textContent='Připojit';}
 }
@@ -427,7 +441,7 @@ document.addEventListener('DOMContentLoaded',async function(){
     document.getElementById('app').style.display='flex';
     document.getElementById('orders-list').innerHTML='<div class="state-center"><div class="loader"></div><div style="font-size:15px;font-weight:300;">Načítám objednávky…</div></div>';
     try{
-      await fetchNotes();allOrders=await fetchOrders();buildFilters();renderOrders();
+      await fetchNotes();allOrders=await fetchOrders();buildFilters();applyFilters();
       toast(allOrders.length+' objednávek','ok');
     }catch(e){
       clearCredentials();
