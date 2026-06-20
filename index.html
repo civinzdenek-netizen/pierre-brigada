@@ -232,6 +232,7 @@ function buildFilters(){
   const groups=[
     {label:'Přijatá',statuses:['Přijatá','Platba úspěšná','Platba selhala']},
     {label:'Vyřizuje se',statuses:['Vyřizuje se']},
+    {label:'Velkoobchod',statuses:['Velkoobchod - Vyřizuje se']},
     {label:'Odeslána',statuses:['Odeslána']},
     {label:'Storno',statuses:['Storno','Zrušená','Stornovaná']},
   ];
@@ -255,6 +256,7 @@ function applyFilters(){
   const groupStatuses={
     'Přijatá':['Přijatá','Platba úspěšná','Platba selhala'],
     'Vyřizuje se':['Vyřizuje se'],
+    'Velkoobchod':['Velkoobchod - Vyřizuje se'],
     'Odeslána':['Odeslána'],
     'Storno':['Storno','Zrušená','Stornovaná'],
   };
